@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rive/rive.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 class Liquid extends StatefulWidget {
   const Liquid({Key? key}) : super(key: key);
@@ -10,6 +11,9 @@ class Liquid extends StatefulWidget {
 }
 
 class _LiquidState extends State<Liquid> {
+  final _channel = WebSocketChannel.connect(
+    Uri.parse('ws://localhost:8080'),
+  );
   bool get isPlaying => _controller?.isActive ?? false;
 
   Artboard? _riveArtboard;
@@ -34,6 +38,12 @@ class _LiquidState extends State<Liquid> {
         setState(() => _riveArtboard = artboard);
       },
     );
+
+    _channel.stream.listen((event) {
+      setState(() {
+        _level!.value = double.parse(event);
+      });
+    });
   }
 
   @override
@@ -58,12 +68,22 @@ class _LiquidState extends State<Liquid> {
                   label: _level!.value.round().toString(),
                   onChanged: (double value) {
                     setState(() {
-                      _level!.value = value;
+                      _sendMessage(value.toString());
                     });
                   },
                 ),
               ),
             ],
           );
+  }
+
+  void _sendMessage(message) {
+    _channel.sink.add(message);
+  }
+
+  @override
+  void dispose() {
+    _channel.sink.close();
+    super.dispose();
   }
 }
